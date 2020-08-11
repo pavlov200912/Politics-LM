@@ -86,7 +86,8 @@ def smart_page_request(url, page_num, default_delay):
             current_page = get_page(url, page_num)
         except requests.HTTPError:
             current_page = None
-            current_delay = max(2, current_delay) ** 2
+            current_delay = max(2, current_delay) * 2
+            print(f"Current delay: {current_delay}")
         time.sleep(current_delay)
     return current_page
 
@@ -102,27 +103,28 @@ if __name__ == '__main__':
     # All pages with transcripts have url like base_url + {some_number}
     # Valid page numbers scrapped with web_notebook and stored in numbers.txt
     base_url = 'http://www.kremlin.ru/events/president/transcripts/'
-    upper_bound = 10
+    upper_bound = None
 
     # Get last index processed at the last program launch
 
     with open('index.txt', 'r') as index_file:
         last_index = int(index_file.read())
 
-    page_numbers = get_all_page_numbers()[last_index:]
+    page_numbers = get_all_page_numbers()
 
     # Use MongoDB for saving speeches
     dataset = defaultdict(list)
     client = MongoClient('mongodb://localhost:27017')
     db = client.nlp
 
-    _index = 0
+    _index = last_index
     atexit.register(save_index)
     signal.signal(signal.SIGTERM, save_index)
     signal.signal(signal.SIGINT, save_index)
-    cnt = 0
+    cnt = last_index
     print(len(page_numbers))
-    for index, page_number in enumerate(page_numbers):
+    for index in range(last_index + 1, len(page_numbers)):
+        page_number = page_numbers[index]
         _index = index
         page = smart_page_request(base_url, page_number, default_delay=0.5)
         date, text = get_page_text(page)
